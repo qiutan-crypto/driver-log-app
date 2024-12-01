@@ -148,6 +148,26 @@ export const DriverInterface = () => {
       setSelectedRoute(null);
     }
   };
+  
+  const handleRouteSelect = (routeId: string) => {
+    const selectedRoute = drivers
+      .find(d => d.id === selectedDriver)
+      ?.routes
+      .find(r => r.id === routeId);
+
+    if (!selectedRoute) return;
+
+    if (selectedRoute.type === 'dropoff') {
+      const timeCheck = checkTimeInterval(selectedRoute);
+      if (!timeCheck.allowed) {
+        alert(timeCheck.message);
+        return;
+      }
+    }
+
+    setSelectedRoute(routeId);
+    setShowSelection(false);
+  };
   const exportLogs = () => {
     if (!selectedDriver || logs.length === 0) return;
 
@@ -195,25 +215,7 @@ export const DriverInterface = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
-  const handleRouteSelect = (routeId: string) => {
-    const selectedRoute = drivers
-      .find(d => d.id === selectedDriver)
-      ?.routes
-      .find(r => r.id === routeId);
-
-    if (!selectedRoute) return;
-
-    if (selectedRoute.type === 'dropoff') {
-      const timeCheck = checkTimeInterval(selectedRoute);
-      if (!timeCheck.allowed) {
-        alert(timeCheck.message);
-        return;
-      }
-    }
-
-    setSelectedRoute(routeId);
-    setShowSelection(false);
-  };if (showSelection) {
+  if (showSelection) {
     return (
       <div className="max-w-md mx-auto min-h-screen bg-white">
         <div className="p-4">
@@ -265,7 +267,9 @@ export const DriverInterface = () => {
         </div>
       </div>
     );
-  }const currentRoute = getCurrentRoute();
+  }
+  
+  const currentRoute = getCurrentRoute();
   if (!currentRoute) return null;
 
   const currentStopData = currentRoute.stops[currentStop];
