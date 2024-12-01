@@ -148,7 +148,53 @@ export const DriverInterface = () => {
       setSelectedRoute(null);
     }
   };
+  const exportLogs = () => {
+    if (!selectedDriver || logs.length === 0) return;
 
+    const formatTime = (date: Date) => {
+      const d = new Date(date);
+      return d.toLocaleTimeString('zh-CN', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit',
+        hour12: false 
+      });
+    };
+
+    const formatDate = (date: Date) => {
+      const d = new Date(date);
+      return d.toLocaleDateString('zh-CN', { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit' 
+      });
+    };
+
+    const csvContent = [
+      ['日期', '客户', '地址', '开始时间', '结束时间', '里程表读数(英里)'].join(','),
+      ...logs.map(log => {
+        const date = new Date(log.startTime);
+        return [
+          `"${formatDate(date)}"`,
+          `"${log.customerName}"`,
+          `"${log.address}"`,
+          `"${formatTime(log.startTime)}"`,
+          `"${formatTime(log.endTime)}"`,
+          log.mileage.toFixed(1)
+        ].join(',');
+      })
+    ].join('\n');
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `司机日志_${drivers.find(d => d.id === selectedDriver)?.name}_${formatDate(new Date())}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
   const handleRouteSelect = (routeId: string) => {
     const selectedRoute = drivers
       .find(d => d.id === selectedDriver)
