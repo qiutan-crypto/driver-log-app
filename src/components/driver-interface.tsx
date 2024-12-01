@@ -8,6 +8,7 @@ import { Loading } from './loading';
 import { ErrorMessage } from './error-message';
 
 export const DriverInterface = () => {
+  // 1. 状态定义
   const { 
     value: drivers, 
     isLoading: driversLoading, 
@@ -23,6 +24,7 @@ export const DriverInterface = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showSelection, setShowSelection] = useState(true);
 
+  // 2. 副作用处理
   useEffect(() => {
     setIsMounted(true);
     if (selectedDriver) {
@@ -39,18 +41,14 @@ export const DriverInterface = () => {
     }
   }, [selectedDriver, logs]);
 
-  if (!isMounted || driversLoading) {
-    return <Loading />;
+  // 3. 所有函数定义
+  function getCurrentRoute() {
+    if (!selectedDriver || !selectedRoute) return null;
+    const driver = drivers.find(d => d.id === selectedDriver);
+    return driver?.routes.find(r => r.id === selectedRoute);
   }
 
-  if (driversError) {
-    return (
-      <ErrorMessage 
-        message="加载司机数据时出错" 
-        onRetry={() => window.location.reload()} 
-      />
-    );
-  }const exportLogs = () => {
+  function exportLogs() {
     if (!selectedDriver || logs.length === 0) return;
 
     const formatTime = (date: Date) => {
@@ -96,9 +94,9 @@ export const DriverInterface = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  };
+  }
 
-  const checkTimeInterval = (route: RouteType) => {
+  function checkTimeInterval(route: RouteType) {
     if (route.type !== 'dropoff') return { allowed: true };
 
     const pickupRouteName = route.name.replace('-dropoff', '');
@@ -145,20 +143,14 @@ export const DriverInterface = () => {
         `需要等待6小时后才能发车\n` +
         `最早可发车时间：${formatDateTime(earliestAllowedTime)}`
     };
-  };
+  }
 
-  const getCurrentRoute = () => {
-    if (!selectedDriver || !selectedRoute) return null;
-    const driver = drivers.find(d => d.id === selectedDriver);
-    return driver?.routes.find(r => r.id === selectedRoute);
-  };
-
-  const handleStart = () => {
+  function handleStart() {
     setStartTime(new Date());
     setIsStarted(true);
-  };
+  }
 
-  const handleArrive = () => {
+  function handleArrive() {
     const currentRoute = getCurrentRoute();
     if (!currentRoute || !selectedDriver || !startTime) return;
 
@@ -193,9 +185,9 @@ export const DriverInterface = () => {
       setStartTime(null);
       setSelectedRoute(null);
     }
-  };
+  }
 
-  const handleRouteSelect = (routeId: string) => {
+  function handleRouteSelect(routeId: string) {
     const selectedRoute = drivers
       .find(d => d.id === selectedDriver)
       ?.routes
@@ -213,7 +205,24 @@ export const DriverInterface = () => {
 
     setSelectedRoute(routeId);
     setShowSelection(false);
-  };if (showSelection) {
+  }
+
+  // 4. 加载和错误处理
+  if (!isMounted || driversLoading) {
+    return <Loading />;
+  }
+
+  if (driversError) {
+    return (
+      <ErrorMessage 
+        message="加载司机数据时出错" 
+        onRetry={() => window.location.reload()} 
+      />
+    );
+  }
+
+  // 5. 选择界面渲染
+  if (showSelection) {
     return (
       <div className="max-w-md mx-auto min-h-screen bg-white">
         <div className="p-4">
@@ -267,6 +276,7 @@ export const DriverInterface = () => {
     );
   }
 
+  // 6. 主界面渲染
   const currentRoute = getCurrentRoute();
   if (!currentRoute) return null;
 
