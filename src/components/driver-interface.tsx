@@ -50,10 +50,57 @@ export const DriverInterface = () => {
         onRetry={() => window.location.reload()} 
       />
     );
-  }const checkTimeInterval = (route: RouteType) => {
+  }const exportLogs = () => {
+    if (!selectedDriver || logs.length === 0) return;
+
+    const formatTime = (date: Date) => {
+      const d = new Date(date);
+      return d.toLocaleTimeString('zh-CN', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit',
+        hour12: false 
+      });
+    };
+
+    const formatDate = (date: Date) => {
+      const d = new Date(date);
+      return d.toLocaleDateString('zh-CN', { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit' 
+      });
+    };
+
+    const csvContent = [
+      ['日期', '客户', '地址', '开始时间', '结束时间', '里程表读数(英里)'].join(','),
+      ...logs.map(log => {
+        const date = new Date(log.startTime);
+        return [
+          `"${formatDate(date)}"`,
+          `"${log.customerName}"`,
+          `"${log.address}"`,
+          `"${formatTime(log.startTime)}"`,
+          `"${formatTime(log.endTime)}"`,
+          log.mileage.toFixed(1)
+        ].join(',');
+      })
+    ].join('\n');
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `司机日志_${drivers.find(d => d.id === selectedDriver)?.name}_${formatDate(new Date())}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const checkTimeInterval = (route: RouteType) => {
     if (route.type !== 'dropoff') return { allowed: true };
 
-    // 找到对应的接客户路线（去掉 '-dropoff' 后缀来匹配）
     const pickupRouteName = route.name.replace('-dropoff', '');
     
     const pickupRoute = drivers
@@ -66,7 +113,6 @@ export const DriverInterface = () => {
       message: `找不到对应的接客户路线记录: ${pickupRouteName}` 
     };
 
-    // 获取接客户路线的最后一站到达时间
     const pickupLogs = JSON.parse(localStorage.getItem(`logs_${selectedDriver}`) || '[]');
     const lastPickupLog = pickupLogs
       .filter((log: any) => log.routeId === pickupRoute.id)
@@ -148,7 +194,7 @@ export const DriverInterface = () => {
       setSelectedRoute(null);
     }
   };
-  
+
   const handleRouteSelect = (routeId: string) => {
     const selectedRoute = drivers
       .find(d => d.id === selectedDriver)
@@ -167,55 +213,7 @@ export const DriverInterface = () => {
 
     setSelectedRoute(routeId);
     setShowSelection(false);
-  };
-  const exportLogs = () => {
-    if (!selectedDriver || logs.length === 0) return;
-
-    const formatTime = (date: Date) => {
-      const d = new Date(date);
-      return d.toLocaleTimeString('zh-CN', { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit',
-        hour12: false 
-      });
-    };
-
-    const formatDate = (date: Date) => {
-      const d = new Date(date);
-      return d.toLocaleDateString('zh-CN', { 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit' 
-      });
-    };
-
-    const csvContent = [
-      ['日期', '客户', '地址', '开始时间', '结束时间', '里程表读数(英里)'].join(','),
-      ...logs.map(log => {
-        const date = new Date(log.startTime);
-        return [
-          `"${formatDate(date)}"`,
-          `"${log.customerName}"`,
-          `"${log.address}"`,
-          `"${formatTime(log.startTime)}"`,
-          `"${formatTime(log.endTime)}"`,
-          log.mileage.toFixed(1)
-        ].join(',');
-      })
-    ].join('\n');
-
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `司机日志_${drivers.find(d => d.id === selectedDriver)?.name}_${formatDate(new Date())}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-  if (showSelection) {
+  };if (showSelection) {
     return (
       <div className="max-w-md mx-auto min-h-screen bg-white">
         <div className="p-4">
@@ -268,7 +266,7 @@ export const DriverInterface = () => {
       </div>
     );
   }
-  
+
   const currentRoute = getCurrentRoute();
   if (!currentRoute) return null;
 
