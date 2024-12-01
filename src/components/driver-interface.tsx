@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, Navigation, CheckCircle, Save, MapPin, User } from 'lucide-react';
+import { ChevronRight, Navigation, CheckCircle, Save } from 'lucide-react';
 import { Driver, Route as RouteType, LogEntry } from '@/types';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { Loading } from './loading';
@@ -52,47 +52,36 @@ export const DriverInterface = () => {
     );
   }const checkTimeInterval = (route: RouteType) => {
     if (route.type !== 'dropoff') return { allowed: true };
-  
-    // 去掉路线名称中的（送）后缀
-    const dropoffRouteName = route.name.replace('（送）', '').replace('-dropoff', '');
-    
-    // 构造可能的接客户路线名称（不带后缀和带（接）后缀两种情况）
-    const possiblePickupNames = [
-      dropoffRouteName,
-      dropoffRouteName + '（接）'
-    ];
+
+    // 找到对应的接客户路线（去掉 '-dropoff' 后缀来匹配）
+    const pickupRouteName = route.name.replace('-dropoff', '');
     
     const pickupRoute = drivers
       .find(d => d.id === selectedDriver)
       ?.routes
-      .find(r => r.type === 'pickup' && possiblePickupNames.includes(r.name));
-  
-    // 调试输出
-    console.log('Dropoff Route Name:', dropoffRouteName);
-    console.log('Possible Pickup Names:', possiblePickupNames);
-    console.log('Found Pickup Route:', pickupRoute);
-  
+      .find(r => r.type === 'pickup' && r.name === pickupRouteName);
+
     if (!pickupRoute) return { 
       allowed: false, 
-      message: `找不到对应的接客户路线记录\n当前送客户路线名称: ${route.name}\n尝试匹配的接客户路线名称: ${possiblePickupNames.join(' 或 ')}`
+      message: `找不到对应的接客户路线记录: ${pickupRouteName}` 
     };
-  
+
     // 获取接客户路线的最后一站到达时间
     const pickupLogs = JSON.parse(localStorage.getItem(`logs_${selectedDriver}`) || '[]');
     const lastPickupLog = pickupLogs
       .filter((log: any) => log.routeId === pickupRoute.id)
       .sort((a: any, b: any) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())[0];
-  
+
     if (!lastPickupLog) return { 
       allowed: false, 
       message: '找不到接客户路线的完成记录，请先完成接客户行程' 
     };
-  
+
     const lastPickupTime = new Date(lastPickupLog.endTime);
     const requiredWaitTime = 6 * 60 * 60 * 1000; // 6小时（毫秒）
     const earliestAllowedTime = new Date(lastPickupTime.getTime() + requiredWaitTime);
     const now = new Date();
-  
+
     const formatDateTime = (date: Date) => {
       return date.toLocaleString('zh-CN', {
         month: '2-digit',
@@ -102,7 +91,7 @@ export const DriverInterface = () => {
         hour12: false
       });
     };
-  
+
     return {
       allowed: now.getTime() >= earliestAllowedTime.getTime(),
       message: 
@@ -111,6 +100,7 @@ export const DriverInterface = () => {
         `最早可发车时间：${formatDateTime(earliestAllowedTime)}`
     };
   };
+
   const getCurrentRoute = () => {
     if (!selectedDriver || !selectedRoute) return null;
     const driver = drivers.find(d => d.id === selectedDriver);
@@ -177,64 +167,16 @@ export const DriverInterface = () => {
 
     setSelectedRoute(routeId);
     setShowSelection(false);
-  };
-
-  const exportLogs = () => {
-    if (!selectedDriver || logs.length === 0) return;
-
-    const formatTime = (date: Date) => {
-      const d = new Date(date);
-      return d.toLocaleTimeString('zh-CN', { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit',
-        hour12: false 
-      });
-    };
-
-    const formatDate = (date: Date) => {
-      const d = new Date(date);
-      return d.toLocaleDateString('zh-CN', { 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit' 
-      });
-    };
-
-    const csvContent = [
-      ['日期', '客户', '地址', '开始时间', '结束时间', '里程表读数(英里)'].join(','),
-      ...logs.map(log => {
-        const date = new Date(log.startTime);
-        return [
-          `"${formatDate(date)}"`,
-          `"${log.customerName}"`,
-          `"${log.address}"`,
-          `"${formatTime(log.startTime)}"`,
-          `"${formatTime(log.endTime)}"`,
-          log.mileage.toFixed(1)
-        ].join(',');
-      })
-    ].join('\n');
-
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `司机日志_${drivers.find(d => d.id === selectedDriver)?.name}_${formatDate(new Date())}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };if (showSelection) {
     return (
-      <div className="max-w-md mx-auto p-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <h2 className="text-lg font-semibold mb-4">选择司机和路线</h2>
+      <div className="max-w-md mx-auto min-h-screen bg-white">
+        <div className="p-4">
+          <h2 className="text-xl font-bold mb-6">选择司机和路线</h2>
           
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">选择司机</label>
+          <div className="mb-6">
+            <label className="block text-base font-medium mb-3">选择司机</label>
             <select
-              className="w-full border p-2 rounded"
+              className="w-full border p-3 rounded-lg text-base bg-white"
               value={selectedDriver || ''}
               onChange={(e) => setSelectedDriver(e.target.value)}
             >
@@ -246,10 +188,10 @@ export const DriverInterface = () => {
           </div>
 
           {selectedDriver && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">选择路线</label>
+            <div className="mb-6">
+              <label className="block text-base font-medium mb-3">选择路线</label>
               <select
-                className="w-full border p-2 rounded"
+                className="w-full border p-3 rounded-lg text-base bg-white"
                 value={selectedRoute || ''}
                 onChange={(e) => handleRouteSelect(e.target.value)}
               >
@@ -268,89 +210,87 @@ export const DriverInterface = () => {
           {selectedDriver && logs.length > 0 && (
             <button
               onClick={exportLogs}
-              className="w-full bg-blue-500 text-white p-2 rounded flex items-center justify-center mt-4"
+              className="w-full bg-blue-500 text-white p-4 rounded-lg text-base font-medium flex items-center justify-center"
             >
-              <Save className="w-4 h-4 mr-2" />
+              <Save className="w-5 h-5 mr-2" />
               导出日志
             </button>
           )}
         </div>
       </div>
     );
-  }
-
-  const currentRoute = getCurrentRoute();
+  }const currentRoute = getCurrentRoute();
   if (!currentRoute) return null;
 
   const currentStopData = currentRoute.stops[currentStop];
 
   return (
-    <div className="max-w-md mx-auto p-4">
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-4 border-b">
-          <h2 className="text-lg font-semibold">
-            当前站点 ({currentStop + 1}/{currentRoute.stops.length})
-          </h2>
-          <p className="text-sm text-gray-500">
-            {drivers.find(d => d.id === selectedDriver)?.name} - {currentRoute.name}
-            <span className={`ml-2 px-2 py-1 text-xs rounded ${
-              currentRoute.type === 'pickup' 
-                ? 'bg-blue-100 text-blue-800' 
-                : 'bg-green-100 text-green-800'
-            }`}>
-              {currentRoute.type === 'pickup' ? '接客户' : '送客户'}
-            </span>
-          </p>
-        </div>
-        <div className="p-4">
-          <div className="mb-4 text-sm space-y-1">
-            <p><span className="text-gray-500">客户：</span>{currentStopData.customerName}</p>
-            <p>
-              <span className="text-gray-500">电话：</span>
-              <a 
-                href={`tel:${currentStopData.phone}`}
-                className="text-blue-500 hover:underline"
-                onClick={(e) => {
-                  if (!window.confirm(`确定要拨打 ${currentStopData.phone} 吗？`)) {
-                    e.preventDefault();
-                  }
-                }}
-              >
-                {currentStopData.phone}
-              </a>
-            </p>
-            <p><span className="text-gray-500">地址：</span>{currentStopData.address}</p>
-          </div>
-          <div className="space-y-4">
-            {!isStarted ? (
-              <button 
-                className="w-full bg-blue-500 text-white p-2 rounded flex items-center justify-center"
-                onClick={handleStart}
-              >
-                <ChevronRight className="w-4 h-4 mr-2" />
-                开始配送
-              </button>
-            ) : (
-              <button 
-                className="w-full bg-green-500 text-white p-2 rounded flex items-center justify-center"
-                onClick={handleArrive}
-              >
-                <CheckCircle className="w-4 h-4 mr-2" />
-                已送达
-              </button>
-            )}
-            
-            <button 
-              className="w-full border border-gray-300 p-2 rounded flex items-center justify-center"
-              onClick={() => {
-                const address = encodeURIComponent(currentStopData.address);
-                window.open(`https://www.google.com/maps/search/?api=1&query=${address}`);
+    <div className="max-w-md mx-auto min-h-screen bg-white">
+      <div className="p-4 border-b sticky top-0 bg-white">
+        <h2 className="text-xl font-bold mb-2">
+          当前站点 ({currentStop + 1}/{currentRoute.stops.length})
+        </h2>
+        <p className="text-gray-600">
+          {drivers.find(d => d.id === selectedDriver)?.name} - {currentRoute.name}
+          <span className={`ml-2 px-3 py-1 text-sm rounded-full ${
+            currentRoute.type === 'pickup' 
+              ? 'bg-blue-100 text-blue-800' 
+              : 'bg-green-100 text-green-800'
+          }`}>
+            {currentRoute.type === 'pickup' ? '接客户' : '送客户'}
+          </span>
+        </p>
+      </div>
+
+      <div className="p-4">
+        <div className="mb-6 text-base space-y-3 bg-gray-50 p-4 rounded-lg">
+          <p><span className="text-gray-500">客户：</span>{currentStopData.customerName}</p>
+          <p>
+            <span className="text-gray-500">电话：</span>
+            <a 
+              href={`tel:${currentStopData.phone}`}
+              className="text-blue-500 hover:underline text-base"
+              onClick={(e) => {
+                if (!window.confirm(`确定要拨打 ${currentStopData.phone} 吗？`)) {
+                  e.preventDefault();
+                }
               }}
             >
-              <Navigation className="w-4 h-4 mr-2" />
-              打开导航
+              {currentStopData.phone}
+            </a>
+          </p>
+          <p><span className="text-gray-500">地址：</span>{currentStopData.address}</p>
+        </div>
+        
+        <div className="space-y-4 fixed bottom-0 left-0 right-0 p-4 bg-white border-t">
+          {!isStarted ? (
+            <button 
+              className="w-full bg-blue-500 text-white p-4 rounded-lg text-base font-medium flex items-center justify-center"
+              onClick={handleStart}
+            >
+              <ChevronRight className="w-5 h-5 mr-2" />
+              开始配送
             </button>
-          </div>
+          ) : (
+            <button 
+              className="w-full bg-green-500 text-white p-4 rounded-lg text-base font-medium flex items-center justify-center"
+              onClick={handleArrive}
+            >
+              <CheckCircle className="w-5 h-5 mr-2" />
+              已送达
+            </button>
+          )}
+          
+          <button 
+            className="w-full border border-gray-300 p-4 rounded-lg text-base font-medium flex items-center justify-center mb-4"
+            onClick={() => {
+              const address = encodeURIComponent(currentStopData.address);
+              window.open(`https://www.google.com/maps/search/?api=1&query=${address}`);
+            }}
+          >
+            <Navigation className="w-5 h-5 mr-2" />
+            打开导航
+          </button>
         </div>
       </div>
     </div>
